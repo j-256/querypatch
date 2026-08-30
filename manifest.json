@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "QueryPatch - URL Parameter Rules",
+  "short_name": "QueryPatch",
+  "version": "1.0.0",
+  "description": "Add, remove, or override query parameters on matching requests, with a built-in URL tester.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "activeTab",
+    "declarativeNetRequestWithHostAccess",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "QueryPatch",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

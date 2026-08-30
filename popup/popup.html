@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QueryPatch</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="brand-lockup">
+          <img class="brand-icon" src="../icons/icon-32.png" width="32" height="32" alt="">
+          <div>
+            <div class="brand-name">QueryPatch</div>
+            <div class="brand-status" id="brandStatus">Loading rules...</div>
+          </div>
+        </div>
+        <div class="save-indicator" id="saveIndicator" aria-live="polite">
+          <span class="save-dot"></span>
+          <span id="saveLabel">Saved</span>
+        </div>
+      </header>
+
+      <nav class="primary-tabs" id="primaryTabs" aria-label="QueryPatch views">
+        <button class="tab-button is-active" type="button" data-view="rules" aria-selected="true">
+          Rules
+          <span class="tab-count" id="tabRuleCount">0</span>
+        </button>
+        <button class="tab-button" type="button" data-view="tester" aria-selected="false">Tester</button>
+      </nav>
+
+      <main class="app-main">
+        <section class="view" id="rulesView" aria-labelledby="rulesHeading">
+          <h1 class="sr-only" id="rulesHeading">Query string rules</h1>
+
+          <div class="activation-panel">
+            <div>
+              <div class="activation-title">Request rewriting</div>
+              <div class="activation-copy" id="activationCopy">No enabled rules</div>
+            </div>
+            <label class="switch-control">
+              <span class="sr-only">Enable request rewriting</span>
+              <input id="globalActive" type="checkbox" checked>
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            </label>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <h2>Your rules</h2>
+              <p>First matching rule wins</p>
+            </div>
+            <button class="button button-primary button-small" id="addRuleButton" type="button">
+              <span aria-hidden="true">+</span>
+              Add rule
+            </button>
+          </div>
+
+          <div class="rule-list" id="ruleList"></div>
+
+          <div class="empty-state" id="emptyState">
+            <div class="empty-mark" aria-hidden="true">?=</div>
+            <h2>Build your first rule</h2>
+            <p>Match a URL pattern, then set, override, or remove its query parameters.</p>
+            <button class="button button-primary" id="emptyAddButton" type="button">Create a rule</button>
+          </div>
+        </section>
+
+        <section class="view" id="testerView" aria-labelledby="testerHeading" hidden>
+          <div class="tester-intro">
+            <div class="eyebrow">No request is sent</div>
+            <h1 id="testerHeading">Test a URL</h1>
+            <p>Preview the winning rule and final query string before opening the URL.</p>
+          </div>
+
+          <form id="testerForm" novalidate>
+            <div class="field-group">
+              <div class="label-row">
+                <label for="testUrl">Request URL</label>
+                <button class="text-button" id="useCurrentTabButton" type="button">Use current tab</button>
+              </div>
+              <textarea class="text-field code-field" id="testUrl" rows="3" spellcheck="false" placeholder="https://example.com/products?debug=0"></textarea>
+              <div class="field-error" id="testUrlError" role="alert"></div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field-group">
+                <label for="testRequestType">Request type</label>
+                <select class="select-field" id="testRequestType">
+                  <option value="main_frame">Page navigation</option>
+                  <option value="xmlhttprequest">Fetch / XHR</option>
+                  <option value="other">Other resource</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label for="testExpectation">Expected winner</label>
+                <select class="select-field" id="testExpectation">
+                  <option value="">Just show result</option>
+                  <option value="__none__">No rule</option>
+                </select>
+              </div>
+            </div>
+
+            <button class="button button-primary button-full" type="submit">Run test</button>
+          </form>
+
+          <div class="tester-placeholder" id="testerPlaceholder">
+            <div class="tester-placeholder-icon" aria-hidden="true">✓</div>
+            <p>Your match trace and transformed URL will appear here.</p>
+          </div>
+
+          <div class="test-result" id="testResult" aria-live="polite" hidden>
+            <div class="result-summary">
+              <span class="result-badge" id="resultBadge"></span>
+              <h2 id="resultTitle"></h2>
+              <p id="resultSubtitle"></p>
+            </div>
+
+            <div class="result-url-block">
+              <div class="label-row">
+                <span class="field-label">Result URL</span>
+                <button class="text-button" id="copyResultButton" type="button">Copy</button>
+              </div>
+              <code class="result-url" id="resultUrl"></code>
+            </div>
+
+            <div class="change-list" id="changeList"></div>
+
+            <details class="trace-panel" open>
+              <summary>Rule trace <span id="traceCount"></span></summary>
+              <div class="trace-list" id="traceList"></div>
+            </details>
+          </div>
+        </section>
+
+        <section class="view editor-view" id="editorView" aria-labelledby="editorHeading" hidden>
+          <div class="editor-header">
+            <button class="icon-button back-button" id="closeEditorButton" type="button" aria-label="Back to rules">←</button>
+            <div>
+              <div class="eyebrow" id="editorEyebrow">New rule</div>
+              <h1 id="editorHeading">Configure rule</h1>
+            </div>
+          </div>
+
+          <form id="ruleForm" novalidate>
+            <div class="field-group">
+              <label for="ruleName">Rule name</label>
+              <input class="text-field" id="ruleName" type="text" maxlength="80" autocomplete="off" placeholder="Local API debug mode">
+            </div>
+
+            <div class="field-group">
+              <div class="label-row">
+                <label for="includePatterns">Match URL patterns</label>
+                <select class="inline-select" id="patternType" aria-label="Pattern syntax">
+                  <option value="wildcard">Wildcard</option>
+                  <option value="regex">Regular expression</option>
+                </select>
+              </div>
+              <textarea class="text-field code-field" id="includePatterns" rows="3" spellcheck="false" placeholder="*://api.example.com/v1/*"></textarea>
+              <p class="field-help" id="patternHelp">One full pattern per line. Use <code>*</code> as a wildcard and <code>*://</code> for HTTP or HTTPS.</p>
+            </div>
+
+            <details class="advanced-panel" id="advancedPanel">
+              <summary>
+                <span>Advanced matching</span>
+                <span class="summary-hint">Optional</span>
+              </summary>
+              <div class="advanced-content">
+                <div class="field-group">
+                  <label for="excludePatterns">Exclude URL patterns</label>
+                  <textarea class="text-field code-field" id="excludePatterns" rows="2" spellcheck="false" placeholder="*://api.example.com/v1/health*"></textarea>
+                  <p class="field-help">An exclusion always beats a match in this rule.</p>
+                </div>
+                <div class="field-group">
+                  <label for="requestScope">Request scope</label>
+                  <select class="select-field" id="requestScope">
+                    <option value="all">All requests</option>
+                    <option value="documents">Page navigations</option>
+                    <option value="fetch">Fetch / XHR</option>
+                  </select>
+                </div>
+                <label class="check-row" for="caseSensitive">
+                  <input id="caseSensitive" type="checkbox">
+                  <span>
+                    <strong>Case-sensitive patterns</strong>
+                    <small>Match uppercase and lowercase characters exactly</small>
+                  </span>
+                </label>
+              </div>
+            </details>
+
+            <div class="operation-section">
+              <div class="section-heading compact-heading">
+                <div>
+                  <h2>Parameter actions</h2>
+                  <p>Names are case-sensitive</p>
+                </div>
+                <button class="button button-quiet button-small" id="addOperationButton" type="button">+ Add</button>
+              </div>
+              <div class="operation-list" id="operationList"></div>
+            </div>
+
+            <div class="form-errors" id="editorErrors" role="alert" hidden></div>
+
+            <div class="sticky-actions">
+              <button class="button button-secondary" id="cancelEditorButton" type="button">Cancel</button>
+              <button class="button button-primary" type="submit">Save rule</button>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <footer class="app-footer" id="appFooter">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        Local only. No request history.
+      </footer>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

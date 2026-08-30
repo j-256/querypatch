@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="QueryPatch">
+  <defs>
+    <linearGradient id="background" x1="18" y1="14" x2="111" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f5f5a"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#background)"/>
+  <path d="M30 39h68M30 64h68M30 89h68" fill="none" stroke="#d5fffa" stroke-linecap="round" stroke-width="9" opacity=".92"/>
+  <circle cx="52" cy="39" r="12" fill="#fff" stroke="#0d7b72" stroke-width="5"/>
+  <circle cx="80" cy="64" r="12" fill="#fff" stroke="#0d7b72" stroke-width="5"/>
+  <circle cx="45" cy="89" r="12" fill="#fff" stroke="#0d7b72" stroke-width="5"/>
+</svg>
