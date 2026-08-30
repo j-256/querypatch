@@ -2,8 +2,12 @@
   "name": "querypatch",
   "version": "1.0.0",
   "private": true,
-  "description": "A compact Chrome extension for query string rewrite rules",
+  "description": "A compact Chrome extension for pattern-based query parameter rewriting with a built-in URL tester",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/j-256/querypatch.git"
+  },
   "scripts": {
     "check": "node scripts/check.mjs",
     "test": "node --test",
