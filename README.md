@@ -52,7 +52,7 @@ The result shows the final URL and an ordered trace for every rule. A trace entr
 
 ## Development
 
-The extension has no runtime dependencies or build step. It requires Node.js 20 or newer for repository checks and tests.
+The extension has no runtime dependencies or build step. It requires Node.js 22 or newer for repository checks and tests.
 
 ```sh
 npm run verify
