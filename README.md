@@ -12,6 +12,7 @@ QueryPatch is a compact Manifest V3 extension for Chrome 120 or newer that adds,
 - `Remove` actions that delete every value for a parameter name
 - Scopes for all requests, page navigations, or Fetch/XHR traffic
 - Per-rule toggles, global pause, duplication, deletion, and priority controls
+- Live multi-URL checks while editing a rule, including one-click active-page import
 - A no-network tester with expected-winner validation, transformed URL preview, parameter changes, and a complete rule trace
 - Local-only storage with no analytics, remote code, or request history
 
@@ -43,6 +44,8 @@ Regular-expression mode accepts one raw Chrome RE2 expression per line without s
 ```
 
 Chrome's RE2 engine supports groups, alternation, character classes, repetitions, anchors, and the other standard RE2 constructs. It intentionally does not support backreferences or lookaround. Chrome validates expressions before QueryPatch saves a rule, and Advanced matching contains a case-sensitive option that applies to matches and exclusions.
+
+Use Try URLs directly beneath the match patterns to check the draft without saving or leaving the editor. Add as many HTTP or HTTPS URLs as needed: each row turns green when the draft rule accepts it and red when it does not, with the reason shown below. Use current page imports the active tab's URL on click. Draft test URLs remain in the editor only and are never stored with the rule.
 
 ## Test behavior
 

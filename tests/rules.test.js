@@ -6,12 +6,14 @@ import {
   OPERATION_TYPES,
   PATTERN_TYPES,
   REQUEST_SCOPES,
+  RULE_MATCH_STATUSES,
   RuleValidationError,
   applyOperations,
   buildDynamicRules,
   createEmptyConfig,
   createRule,
   evaluateConfig,
+  evaluateRuleMatch,
   normalizeConfig,
   patternMatches,
   patternToRegex,
@@ -197,6 +199,65 @@ test("evaluateConfig ignores fragments while matching and preserves them in outp
 
   assert.equal(result.winner.id, "rule-a");
   assert.equal(result.outputUrl, "https://example.com/path?debug=1#section");
+});
+
+test("evaluateRuleMatch checks a draft rule and ignores URL fragments", () => {
+  const result = evaluateRuleMatch(
+    configuredRule({ includes: ["*://example.com/products/*"] }),
+    "https://example.com/products/42?debug=0#details",
+  );
+
+  assert.deepEqual(result, {
+    status: RULE_MATCH_STATUSES.MATCH,
+    matches: true,
+    detail: "Matched *://example.com/products/*",
+    includePattern: "*://example.com/products/*",
+  });
+});
+
+test("evaluateRuleMatch applies exclusions and case sensitivity", () => {
+  const rule = configuredRule({
+    includes: ["https://example.com/public", "https://example.com/private/*"],
+    excludes: ["https://example.com/private/*"],
+  });
+  const excluded = evaluateRuleMatch(rule, "https://example.com/private/account");
+  const caseMiss = evaluateRuleMatch(
+    { ...rule, caseSensitive: true },
+    "https://example.com/Public",
+  );
+
+  assert.equal(excluded.status, RULE_MATCH_STATUSES.EXCLUDED);
+  assert.equal(excluded.matches, false);
+  assert.equal(excluded.excludePattern, "https://example.com/private/*");
+  assert.equal(caseMiss.status, RULE_MATCH_STATUSES.MISS);
+  assert.equal(caseMiss.matches, false);
+});
+
+test("evaluateRuleMatch returns actionable draft failures", () => {
+  assert.deepEqual(evaluateRuleMatch(configuredRule(), ""), {
+    status: RULE_MATCH_STATUSES.EMPTY,
+    matches: false,
+    detail: "Enter a complete HTTP or HTTPS URL",
+  });
+  assert.equal(
+    evaluateRuleMatch(configuredRule(), "not a URL").status,
+    RULE_MATCH_STATUSES.INVALID_URL,
+  );
+  assert.deepEqual(
+    evaluateRuleMatch(configuredRule({ includes: [] }), "https://example.com/"),
+    {
+      status: RULE_MATCH_STATUSES.INVALID_PATTERN,
+      matches: false,
+      detail: "Add at least one match pattern",
+    },
+  );
+  assert.match(
+    evaluateRuleMatch(
+      configuredRule({ patternType: PATTERN_TYPES.REGEX, includes: ["(["] }),
+      "https://example.com/",
+    ).detail,
+    /^Match pattern 1: Invalid regular expression/,
+  );
 });
 
 test("buildDynamicRules maps order, exclusions, scopes, and operations to DNR", () => {

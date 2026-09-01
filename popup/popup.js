@@ -3,10 +3,12 @@ import {
   OPERATION_TYPES,
   PATTERN_TYPES,
   REQUEST_SCOPE_LABELS,
+  RULE_MATCH_STATUSES,
   RuleValidationError,
   createEmptyConfig,
   createRule,
   evaluateConfig,
+  evaluateRuleMatch,
   normalizeConfig,
   normalizeRule,
   validateRule,
@@ -19,6 +21,7 @@ const DEFAULT_TEST_URL = "https://example.com/products?debug=0&utm_source=newsle
 const elements = {
   activationCopy: document.querySelector("#activationCopy"),
   activationPanel: document.querySelector(".activation-panel"),
+  addInlineTestButton: document.querySelector("#addInlineTestButton"),
   addOperationButton: document.querySelector("#addOperationButton"),
   addRuleButton: document.querySelector("#addRuleButton"),
   advancedPanel: document.querySelector("#advancedPanel"),
@@ -37,6 +40,8 @@ const elements = {
   excludePatterns: document.querySelector("#excludePatterns"),
   globalActive: document.querySelector("#globalActive"),
   includePatterns: document.querySelector("#includePatterns"),
+  inlineTestList: document.querySelector("#inlineTestList"),
+  inlineTestSummary: document.querySelector("#inlineTestSummary"),
   operationList: document.querySelector("#operationList"),
   patternHelp: document.querySelector("#patternHelp"),
   patternType: document.querySelector("#patternType"),
@@ -64,11 +69,13 @@ const elements = {
   toast: document.querySelector("#toast"),
   traceCount: document.querySelector("#traceCount"),
   traceList: document.querySelector("#traceList"),
+  useCurrentPageButton: document.querySelector("#useCurrentPageButton"),
   useCurrentTabButton: document.querySelector("#useCurrentTabButton"),
 };
 
 let config = createEmptyConfig();
 let editingRule = null;
+let inlineTestRowSequence = 0;
 let saving = false;
 let toastTimer = null;
 
@@ -103,15 +110,23 @@ function bindEvents() {
   elements.emptyAddButton.addEventListener("click", () => openEditor());
   elements.closeEditorButton.addEventListener("click", closeEditor);
   elements.cancelEditorButton.addEventListener("click", closeEditor);
+  elements.addInlineTestButton.addEventListener("click", () => addInlineTestUrl());
   elements.addOperationButton.addEventListener("click", addOperation);
   elements.ruleForm.addEventListener("submit", saveEditor);
   elements.operationList.addEventListener("click", handleOperationClick);
   elements.operationList.addEventListener("change", handleOperationChange);
   elements.patternType.addEventListener("change", updatePatternMode);
+  elements.includePatterns.addEventListener("input", refreshInlineTests);
+  elements.excludePatterns.addEventListener("input", refreshInlineTests);
+  elements.caseSensitive.addEventListener("change", refreshInlineTests);
+  elements.inlineTestList.addEventListener("click", handleInlineTestClick);
+  elements.inlineTestList.addEventListener("input", handleInlineTestInput);
+  elements.inlineTestList.addEventListener("keydown", handleInlineTestKeydown);
   elements.ruleList.addEventListener("click", handleRuleListClick);
   elements.ruleList.addEventListener("change", handleRuleListChange);
   elements.globalActive.addEventListener("change", toggleGlobalActive);
   elements.testerForm.addEventListener("submit", runTest);
+  elements.useCurrentPageButton.addEventListener("click", useCurrentPageForInlineTest);
   elements.useCurrentTabButton.addEventListener("click", useCurrentTab);
   elements.copyResultButton.addEventListener("click", copyResultUrl);
   elements.testUrl.addEventListener("input", clearTestError);
@@ -367,6 +382,7 @@ function openEditor(ruleId = null) {
   updatePatternMode();
   clearEditorErrors();
   renderOperationRows(editingRule.operations);
+  resetInlineTests();
   setView("editor");
   elements.ruleName.focus();
   elements.ruleName.select();
@@ -374,6 +390,7 @@ function openEditor(ruleId = null) {
 
 function closeEditor() {
   editingRule = null;
+  elements.inlineTestList.replaceChildren();
   clearEditorErrors();
   setView("rules");
 }
@@ -415,6 +432,169 @@ function updatePatternMode() {
     const star = createElement("code", "", "*");
     const scheme = createElement("code", "", "*://");
     elements.patternHelp.append(star, " as a wildcard and ", scheme, " for HTTP or HTTPS.");
+  }
+
+  refreshInlineTests();
+}
+
+function resetInlineTests() {
+  elements.inlineTestList.replaceChildren();
+  addInlineTestUrl("", false);
+}
+
+function addInlineTestUrl(value = "", focus = true) {
+  const row = createInlineTestRow(value);
+  elements.inlineTestList.append(row);
+  updateInlineTestControls();
+  refreshInlineTests();
+
+  if (focus) {
+    row.querySelector(".inline-test-input").focus();
+  }
+}
+
+function createInlineTestRow(value) {
+  inlineTestRowSequence += 1;
+  const rowId = `inline-test-${inlineTestRowSequence}`;
+  const row = createElement("div", "inline-test-row is-empty");
+  row.setAttribute("role", "listitem");
+
+  const dot = createElement("span", "inline-test-dot");
+  dot.setAttribute("aria-hidden", "true");
+
+  const input = createElement("input", "inline-test-input code-field");
+  input.type = "url";
+  input.value = value;
+  input.placeholder = "https://example.com/path";
+  input.autocomplete = "off";
+  input.autocapitalize = "off";
+  input.spellcheck = false;
+
+  const status = createElement("span", "inline-test-status", "Enter URL");
+  status.id = `${rowId}-status`;
+  const detail = createElement(
+    "span",
+    "inline-test-detail",
+    "Enter a complete HTTP or HTTPS URL",
+  );
+  detail.id = `${rowId}-detail`;
+  input.setAttribute("aria-describedby", `${status.id} ${detail.id}`);
+
+  const remove = createIconButton("×", "Remove test URL", "remove-inline-test", "");
+  remove.classList.add("inline-test-remove");
+
+  row.append(dot, input, status, remove, detail);
+  return row;
+}
+
+function handleInlineTestClick(event) {
+  const button = event.target.closest('[data-action="remove-inline-test"]');
+  if (!button || elements.inlineTestList.childElementCount <= 1) {
+    return;
+  }
+
+  button.closest(".inline-test-row").remove();
+  updateInlineTestControls();
+  refreshInlineTests();
+}
+
+function handleInlineTestInput(event) {
+  if (event.target.matches(".inline-test-input")) {
+    refreshInlineTests();
+  }
+}
+
+function handleInlineTestKeydown(event) {
+  if (event.key !== "Enter" || !event.target.matches(".inline-test-input")) {
+    return;
+  }
+
+  event.preventDefault();
+  addInlineTestUrl();
+}
+
+function updateInlineTestControls() {
+  const rows = [...elements.inlineTestList.querySelectorAll(".inline-test-row")];
+  rows.forEach((row, index) => {
+    const position = index + 1;
+    row.querySelector(".inline-test-input").setAttribute("aria-label", `Test URL ${position}`);
+    const remove = row.querySelector(".inline-test-remove");
+    remove.setAttribute("aria-label", `Remove test URL ${position}`);
+    remove.title = `Remove test URL ${position}`;
+    remove.disabled = rows.length === 1;
+  });
+}
+
+function refreshInlineTests() {
+  if (!editingRule) {
+    return;
+  }
+
+  const draftRule = {
+    ...editingRule,
+    patternType: elements.patternType.value,
+    caseSensitive: elements.caseSensitive.checked,
+    includes: readLines(elements.includePatterns.value),
+    excludes: readLines(elements.excludePatterns.value),
+  };
+  const rows = [...elements.inlineTestList.querySelectorAll(".inline-test-row")];
+  let matchCount = 0;
+  let testedCount = 0;
+
+  rows.forEach((row) => {
+    const input = row.querySelector(".inline-test-input");
+    const result = evaluateRuleMatch(draftRule, input.value);
+    const isEmpty = result.status === RULE_MATCH_STATUSES.EMPTY;
+    const isInvalidUrl = result.status === RULE_MATCH_STATUSES.INVALID_URL;
+    const stateClass = result.matches ? "is-match" : isEmpty ? "is-empty" : "is-miss";
+
+    row.className = `inline-test-row ${stateClass}`;
+    row.dataset.status = result.status;
+    row.querySelector(".inline-test-status").textContent = result.matches
+      ? "Matches"
+      : isEmpty
+        ? "Enter URL"
+        : "No match";
+    const detail = row.querySelector(".inline-test-detail");
+    detail.textContent = result.detail;
+    detail.title = result.detail;
+
+    if (isInvalidUrl) {
+      input.setAttribute("aria-invalid", "true");
+    } else {
+      input.removeAttribute("aria-invalid");
+    }
+
+    if (!isEmpty) {
+      testedCount += 1;
+    }
+    if (result.matches) {
+      matchCount += 1;
+    }
+  });
+
+  elements.inlineTestSummary.textContent = testedCount
+    ? `${matchCount} of ${testedCount} matching`
+    : "Enter URLs to check this draft";
+}
+
+async function useCurrentPageForInlineTest() {
+  try {
+    const url = await getCurrentTabUrl();
+    const inputs = [...elements.inlineTestList.querySelectorAll(".inline-test-input")];
+    let input = inputs.find((candidate) => !candidate.value.trim());
+
+    if (!input) {
+      addInlineTestUrl(url, false);
+      input = elements.inlineTestList.lastElementChild.querySelector(".inline-test-input");
+    } else {
+      input.value = url;
+      refreshInlineTests();
+    }
+
+    input.focus();
+  } catch (error) {
+    showToast(error.message, true);
   }
 }
 
@@ -725,17 +905,22 @@ function traceStatusLabel(status) {
 
 async function useCurrentTab() {
   try {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const url = tabs[0]?.url;
-    if (!url || !/^https?:\/\//i.test(url)) {
-      throw new Error("The current tab is not an HTTP or HTTPS page");
-    }
+    const url = await getCurrentTabUrl();
     elements.testUrl.value = url;
     clearTestError();
     runTest();
   } catch (error) {
     elements.testUrlError.textContent = error.message;
   }
+}
+
+async function getCurrentTabUrl() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = tabs[0]?.url;
+  if (!url || !/^https?:\/\//i.test(url)) {
+    throw new Error("The current tab is not an HTTP or HTTPS page");
+  }
+  return url;
 }
 
 async function copyResultUrl() {
