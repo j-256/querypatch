@@ -11,10 +11,14 @@
   "scripts": {
     "check": "node scripts/check.mjs",
     "test": "node --test",
-    "verify": "npm run check && npm test"
+    "verify": "npm run check && npm test",
+    "capture:cover": "node scripts/capture-cover.mjs"
   },
   "license": "AGPL-3.0-only",
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
   }
 }
