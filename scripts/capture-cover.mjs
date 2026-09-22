@@ -26,7 +26,7 @@ try {
   context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium', headless: true,
     args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`],
-    viewport: { width: 440, height: 620 }, deviceScaleFactor: 2,
+    viewport: { width: 440, height: 620 }, deviceScaleFactor: 4,
     reducedMotion: 'reduce',
   });
   context.setDefaultTimeout(30_000);
